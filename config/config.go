@@ -23,6 +23,9 @@ type Config struct {
 	DatabaseSSL      string `mapstructure:"DB_SSL"`
 	RateLimitMax     int    `mapstructure:"RATE_LIMIT_MAX"`
 	RateLimitWindow  int    `mapstructure:"RATE_LIMIT_WINDOW"`
+	RedisHost        string `mapstructure:"REDIS_HOST"`
+	RedisPort        string `mapstructure:"REDIS_PORT"`
+	RedisPassword    string `mapstructure:"REDIS_PASSWORD"`
 }
 
 // LoadConfig reads configuration from file or environment variables.

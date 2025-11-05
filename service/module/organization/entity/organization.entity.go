@@ -6,3 +6,7 @@ type Organization struct {
 	ShortName string `gorm:"type:varchar(100);not null" json:"short_name"`
 	Address   string `gorm:"type:text" json:"address,omitempty"`
 }
+
+func (Organization) TableName() string {
+	return "organizations"
+}
