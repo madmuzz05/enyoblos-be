@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/madmuzz05/be-enyoblos/package/middleware"
 	"github.com/madmuzz05/be-enyoblos/package/redisdb"
 	"github.com/madmuzz05/be-enyoblos/service/module/organization/handler"

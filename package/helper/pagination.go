@@ -4,7 +4,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
 type PaginationRequest struct {
@@ -21,7 +21,7 @@ type PaginationResponse struct {
 }
 
 // ParsePaginationFromQuery mengparse pagination parameter dari query string
-func ParsePaginationFromQuery(c *fiber.Ctx) PaginationRequest {
+func ParsePaginationFromQuery(c fiber.Ctx) PaginationRequest {
 	page := c.Query("page", "1")
 	pageSize := c.Query("page_size", "10")
 	sort := c.Query("sort", "ASC")
@@ -66,7 +66,7 @@ func BuildPaginationResponse(currentPage, pageSize int, totalRecords int64) Pagi
 }
 
 // SendPaginatedResponse mengirim response pagination dengan format standar
-func SendPaginatedResponse(c *fiber.Ctx, statusCode int, message string, currentPage, pageSize int, totalRecords int64, data interface{}) error {
+func SendPaginatedResponse(c fiber.Ctx, statusCode int, message string, currentPage, pageSize int, totalRecords int64, data interface{}) error {
 	pagination := BuildPaginationResponse(currentPage, pageSize, totalRecords)
 	return c.Status(statusCode).JSON(fiber.Map{
 		"status":     "success",

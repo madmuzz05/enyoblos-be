@@ -1,0 +1,32 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: >
+      sh -c '
+        redis-server --appendonly no --save "" --requirepass "$$REDIS_PASSWORD"
+      '
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: >
+        sh -c '
+          redis-cli -a "$$REDIS_PASSWORD" ping
+        '
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+volumes:
+  redis-data:
+
+networks:
+  app-network:
+    driver: bridge

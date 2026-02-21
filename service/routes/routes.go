@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/cors"
 	database "github.com/madmuzz05/be-enyoblos/package/database/postgres"
 	"github.com/madmuzz05/be-enyoblos/package/middleware"
 	"github.com/madmuzz05/be-enyoblos/package/redisdb"
@@ -22,10 +22,10 @@ func SetupRoutes(app *fiber.App) *fiber.App {
 
 	// set up middlewares
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:  "*",
-		AllowMethods:  "*",
-		AllowHeaders:  "*",
-		ExposeHeaders: "*",
+		AllowOrigins:  []string{"*"},
+		AllowMethods:  []string{"GET", "POST", "HEAD", "PUT", "DELETE", "PATCH"},
+		AllowHeaders:  []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders: []string{"Content-Length"},
 	}))
 
 	return app
@@ -37,7 +37,7 @@ func InitRoutes(app *fiber.App, db *database.MainDB, redisDb *redisdb.RedisClien
 
 	// Initialize Organization
 	orgRepository := repository.InitOrganizationRepository(db)
-	orgUsecase := usecase.InitOrganizationUsecase(orgRepository, redisDb)
+	orgUsecase := usecase.InitOrganizationUsecase(orgRepository, redisDb, db)
 	orgHandler := handler.InitOrganizationHandler(orgUsecase)
 
 	// Initialize User

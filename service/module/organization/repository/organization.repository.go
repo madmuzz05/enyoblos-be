@@ -1,15 +1,19 @@
 package repository
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
+	database "github.com/madmuzz05/be-enyoblos/package/database/postgres"
 	syserror "github.com/madmuzz05/be-enyoblos/package/error"
 	"github.com/madmuzz05/be-enyoblos/package/helper"
 	"github.com/madmuzz05/be-enyoblos/service/module/organization/dto"
 	"github.com/madmuzz05/be-enyoblos/service/module/organization/entity"
 )
 
-func (r *OrganizationRepository) GetOrganizations(ctx *fiber.Ctx) (res []entity.Organization, totalRecords int64, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *OrganizationRepository) GetOrganizations(ctx fiber.Ctx) (res []entity.Organization, totalRecords int64, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	// Parse pagination
 	pagination := helper.ParsePaginationFromQuery(ctx)
@@ -17,38 +21,44 @@ func (r *OrganizationRepository) GetOrganizations(ctx *fiber.Ctx) (res []entity.
 
 	// Get total records
 	countQuery := `SELECT COUNT(*) FROM organizations`
-	db.Raw(countQuery).Scan(&totalRecords)
+	db.Get(&totalRecords, countQuery)
 
 	// Get paginated data
-	query := `SELECT * FROM organizations ORDER BY id ` + pagination.Sort + ` LIMIT ? OFFSET ?`
-	model := db.Raw(query, pagination.PageSize, offset).Scan(&res)
+	query := `SELECT * FROM organizations ORDER BY id ` + pagination.Sort + ` LIMIT $1 OFFSET $2`
+	err := db.Select(&res, query, pagination.PageSize, offset)
 
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Terjadi Kesalahan Internal")
+	if err != nil {
+		sysError = syserror.CreateError(err, fiber.StatusInternalServerError, "Terjadi Kesalahan Internal")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if len(res) == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.ErrNotFound.Code, fiber.ErrNotFound.Message)
 	}
 	return
 }
 
-func (r *OrganizationRepository) GetOrganizationByID(ctx *fiber.Ctx, Id int) (res entity.Organization, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
-	query := `SELECT * FROM organizations WHERE id = ?`
+func (r *OrganizationRepository) GetOrganizationByID(ctx fiber.Ctx, Id int) (res entity.Organization, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
+	query := `SELECT * FROM organizations WHERE id = $1`
 
-	model := db.Raw(query, Id).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil organization")
+	model := db.Get(&res, query, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil organization")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "Organization tidak ditemukan")
 	}
 	return
 }
 
 // CreateOrganization - Create new organization
-func (r *OrganizationRepository) CreateOrganization(ctx *fiber.Ctx, req dto.CreateOrganizationRequest) (res entity.Organization, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *OrganizationRepository) CreateOrganization(ctx fiber.Ctx, req dto.CreateOrganizationRequest) (res entity.Organization, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	res = entity.Organization{
 		Name:      req.Name,
@@ -56,11 +66,14 @@ func (r *OrganizationRepository) CreateOrganization(ctx *fiber.Ctx, req dto.Crea
 		Address:   req.Address,
 	}
 
-	query := `INSERT INTO organizations (name, short_name, address) VALUES (?, ?, ?) RETURNING *`
-	model := db.Raw(query, res.Name, res.ShortName, res.Address).Scan(&res)
+	query := `INSERT INTO organizations (name, short_name, address) VALUES ($1, $2, $3) RETURNING *`
+	model := db.Get(&res, query, res.Name, res.ShortName, res.Address)
 
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal membuat organization")
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal membuat organization")
+		return
+	} else if res.ID == 0 {
+		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "Organization tidak ditemukan")
 		return
 	}
 
@@ -68,8 +81,11 @@ func (r *OrganizationRepository) CreateOrganization(ctx *fiber.Ctx, req dto.Crea
 }
 
 // UpdateOrganization - Update organization data
-func (r *OrganizationRepository) UpdateOrganization(ctx *fiber.Ctx, id int, req dto.UpdateOrganizationRequest) (res entity.Organization, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *OrganizationRepository) UpdateOrganization(ctx fiber.Ctx, id int, req dto.UpdateOrganizationRequest) (res entity.Organization, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	// Update hanya field yang diberikan
 	if req.Name != "" {
@@ -82,11 +98,14 @@ func (r *OrganizationRepository) UpdateOrganization(ctx *fiber.Ctx, id int, req 
 		res.Address = req.Address
 	}
 
-	query := `UPDATE organizations SET name = ?, short_name = ?, address = ? WHERE id = ? RETURNING *`
-	model := db.Raw(query, res.Name, res.ShortName, res.Address, id).Scan(&res)
+	query := `UPDATE organizations SET name = $1, short_name = $2, address = $3 WHERE id = $4 RETURNING *`
+	model := db.Get(&res, query, res.Name, res.ShortName, res.Address, id)
 
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengupdate organization")
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengupdate organization")
+		return
+	} else if res.ID == 0 {
+		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "Organization tidak ditemukan")
 		return
 	}
 
@@ -94,14 +113,22 @@ func (r *OrganizationRepository) UpdateOrganization(ctx *fiber.Ctx, id int, req 
 }
 
 // DeleteOrganization - Delete organization
-func (r *OrganizationRepository) DeleteOrganization(ctx *fiber.Ctx, id int) (sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *OrganizationRepository) DeleteOrganization(ctx fiber.Ctx, id int) (sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
-	query := `DELETE FROM organizations WHERE id = ?`
-	model := db.Exec(query, id)
+	query := `DELETE FROM organizations WHERE id = $1`
 
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal menghapus organization")
+	result, err := db.Exec(query, id)
+	if err != nil {
+		sysError = syserror.CreateError(err, fiber.StatusInternalServerError, "Gagal menghapus organization")
+		return
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		sysError = syserror.CreateError(nil, fiber.StatusNotFound, "Organization tidak ditemukan")
 		return
 	}
 

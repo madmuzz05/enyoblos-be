@@ -1,43 +1,53 @@
 package repository
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
+	database "github.com/madmuzz05/be-enyoblos/package/database/postgres"
 	syserror "github.com/madmuzz05/be-enyoblos/package/error"
 	"github.com/madmuzz05/be-enyoblos/package/helper"
 	"github.com/madmuzz05/be-enyoblos/service/module/user/entity"
 )
 
-func (r *UserRepository) CreateUser(ctx *fiber.Ctx, user entity.User) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) CreateUser(ctx fiber.Ctx, user entity.User) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	query := `INSERT INTO public.users (name, short_name, email, age, password, organization_id) 
-             VALUES (?, ?, ?, ?, ?, ?) 
+             VALUES ($1, $2, $3, $4, $5, $6) 
              RETURNING id, name, short_name, email, age, password, organization_id`
 
-	model := db.Raw(query, user.Name, user.ShortName, user.Email, user.Age, user.Password, user.OrganizationID).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal membuat user")
+	model := db.Get(&res, query, user.Name, user.ShortName, user.Email, user.Age, user.Password, user.OrganizationID)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal membuat user")
 		return
 	}
 	return
 }
 
-func (r *UserRepository) GetUserByID(ctx *fiber.Ctx, Id string) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
-	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE id = ?`
+func (r *UserRepository) GetUserByID(ctx fiber.Ctx, Id string) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
+	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE id = $1`
 
-	model := db.Raw(query, Id).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil user")
+	model := db.Get(&res, query, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return
 }
 
-func (r *UserRepository) GetUsers(ctx *fiber.Ctx) (res []entity.User, totalRecords int64, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) GetUsers(ctx fiber.Ctx) (res []entity.User, totalRecords int64, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	// Parse pagination
 	pagination := helper.ParsePaginationFromQuery(ctx)
@@ -45,135 +55,165 @@ func (r *UserRepository) GetUsers(ctx *fiber.Ctx) (res []entity.User, totalRecor
 
 	// Get total records
 	countQuery := `SELECT COUNT(*) FROM public.users`
-	db.Raw(countQuery).Scan(&totalRecords)
+	model := db.Get(&totalRecords, countQuery)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil total records")
+		return
+	}
 
 	// Get paginated data
 	query := `SELECT id, name, short_name, email, age, password, organization_id 
 	          FROM public.users 
-	          LIMIT ? OFFSET ?`
+	          LIMIT $1 OFFSET $2`
 
-	model := db.Raw(query, pagination.PageSize, offset).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil users")
+	model = db.Select(&res, query, pagination.PageSize, offset)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil users")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if len(res) == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "Tidak ada users")
 	}
 	return
 }
 
-func (r *UserRepository) DeleteUser(ctx *fiber.Ctx, Id string) syserror.SysError {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) DeleteUser(ctx fiber.Ctx, Id string) syserror.SysError {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
-	query := `DELETE FROM public.users WHERE id = ?`
+	query := `DELETE FROM public.users WHERE id = $1`
 
-	model := db.Exec(query, Id)
-	if model.Error != nil {
-		return syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal menghapus user")
-	} else if model.RowsAffected == 0 {
+	result, model := db.Exec(query, Id)
+	rowsAffected, _ := result.RowsAffected()
+	if model != nil {
+		return syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal menghapus user")
+	} else if rowsAffected == 0 {
 		return syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return nil
 }
 
-func (r *UserRepository) UpdateUser(ctx *fiber.Ctx, Id string, user entity.User) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) UpdateUser(ctx fiber.Ctx, Id string, user entity.User) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	query := `UPDATE public.users 
-			 SET name = ?, short_name = ?, email = ?, age = ?, password = ?, organization_id = ? 
-			 WHERE id = ? 
+			 SET name = $1, short_name = $2, email = $3, age = $4, password = $5, organization_id = $6 
+			 WHERE id = $7 
 			 RETURNING id, name, short_name, email, age, password, organization_id`
-	model := db.Raw(query, user.Name, user.ShortName, user.Email, user.Age, user.Password, user.OrganizationID, Id).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal memperbarui user")
+	model := db.Get(&res, query, user.Name, user.ShortName, user.Email, user.Age, user.Password, user.OrganizationID, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal memperbarui user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return
 }
 
-func (r *UserRepository) UpdateProfileUser(ctx *fiber.Ctx, Id string, user entity.User) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) UpdateProfileUser(ctx fiber.Ctx, Id string, user entity.User) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	query := `UPDATE public.users 
-			 SET name = ?, short_name = ?, email = ?, age = ? 
-			 WHERE id = ? 
+			 SET name = $1, short_name = $2, email = $3, age = $4 
+			 WHERE id = $5 
 			 RETURNING id, name, short_name, email, age, password, organization_id`
-	model := db.Raw(query, user.Name, user.ShortName, user.Email, user.Age, Id).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal memperbarui profil user")
+	model := db.Get(&res, query, user.Name, user.ShortName, user.Email, user.Age, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal memperbarui profil user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return
 }
 
-func (r *UserRepository) GetUsersByOrganizationID(ctx *fiber.Ctx, organizationID string) (res []entity.User, totalRecords int64, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
+func (r *UserRepository) GetUsersByOrganizationID(ctx fiber.Ctx, organizationID string) (res []entity.User, totalRecords int64, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
 
 	// Parse pagination
 	pagination := helper.ParsePaginationFromQuery(ctx)
 	offset := helper.GetOffset(pagination.Page, pagination.PageSize)
 
 	// Get total records
-	countQuery := `SELECT COUNT(*) FROM public.users WHERE organization_id = ?`
-	db.Raw(countQuery, organizationID).Scan(&totalRecords)
+	countQuery := `SELECT COUNT(*) FROM public.users WHERE organization_id = $1`
+	model := db.Get(&totalRecords, countQuery, organizationID)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil total records")
+		return
+	}
 
 	// Get paginated data
 	query := `SELECT id, name, short_name, email, age, password, organization_id 
 	          FROM public.users 
-	          WHERE organization_id = ? 
-	          LIMIT ? OFFSET ?`
+	          WHERE organization_id = $1 
+	          LIMIT $2 OFFSET $3`
 
-	model := db.Raw(query, organizationID, pagination.PageSize, offset).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil users berdasarkan organization_id")
+	model = db.Select(&res, query, organizationID, pagination.PageSize, offset)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil users berdasarkan organization_id")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if len(res) == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "Tidak ada users untuk organization_id tersebut")
 	}
 	return
 }
 
-func (r *UserRepository) GetUserByEmailAndId(ctx *fiber.Ctx, email string, Id string) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
-	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE email = ? AND id != ?`
+func (r *UserRepository) GetUserByEmailAndId(ctx fiber.Ctx, email string, Id string) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
+	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE email = $1 AND id != $2`
 
-	model := db.Raw(query, email, Id).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil user")
+	model := db.Get(&res, query, email, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return
 }
 
-func (r *UserRepository) GetUserByEmail(ctx *fiber.Ctx, email string) (res entity.User, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
-	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE email = ?`
+func (r *UserRepository) GetUserByEmail(ctx fiber.Ctx, email string) (res entity.User, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
+	query := `SELECT id, name, short_name, email, age, password, organization_id FROM public.users WHERE email = $1`
 
-	model := db.Raw(query, email).Scan(&res)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil user")
+	model := db.Get(&res, query, email)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if res.ID == 0 {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return
 }
 
-func (r *UserRepository) GetPasswordById(ctx *fiber.Ctx, Id int) (password string, sysError syserror.SysError) {
-	db := r.mainDB.DB.WithContext(ctx.UserContext())
-	query := `SELECT password FROM public.users WHERE id = ?`
+func (r *UserRepository) GetPasswordById(ctx fiber.Ctx, Id int) (password string, sysError syserror.SysError) {
+	db := database.DBWithCtx{
+		DB:  r.mainDB.DB,
+		Ctx: ctx.Context(),
+	}
+	query := `SELECT password FROM public.users WHERE id = $1`
 
-	model := db.Raw(query, Id).Scan(&password)
-	if model.Error != nil {
-		sysError = syserror.CreateError(model.Error, fiber.StatusInternalServerError, "Gagal mengambil password user")
+	model := db.Get(&password, query, Id)
+	if model != nil {
+		sysError = syserror.CreateError(model, fiber.StatusInternalServerError, "Gagal mengambil password user")
 		return
-	} else if model.RowsAffected == 0 {
+	} else if password == "" {
 		sysError = syserror.CreateError(fiber.ErrNotFound, fiber.StatusNotFound, "User tidak ditemukan")
 	}
 	return

@@ -9,14 +9,14 @@ type PaginatedOrganizations struct {
 
 // CreateOrganizationRequest - DTO untuk create organization
 type CreateOrganizationRequest struct {
-	Name      string `json:"name" binding:"required"`
-	ShortName string `json:"short_name" binding:"required"`
+	Name      string `json:"name" validate:"required"`
+	ShortName string `json:"short_name" validate:"required"`
 	Address   string `json:"address"`
 }
 
 // UpdateOrganizationRequest - DTO untuk update organization
 type UpdateOrganizationRequest struct {
-	Name      string `json:"name" binding:"required"`
-	ShortName string `json:"short_name" binding:"required"`
+	Name      string `json:"name" validate:"required"`
+	ShortName string `json:"short_name" validate:"required"`
 	Address   string `json:"address"`
 }

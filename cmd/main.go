@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
+	"strconv"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/madmuzz05/be-enyoblos/config"
 	database "github.com/madmuzz05/be-enyoblos/package/database/postgres"
 	"github.com/madmuzz05/be-enyoblos/package/helper"
@@ -54,7 +54,7 @@ func main() {
 	// Load routes
 	app = routes.InitRoutes(app, db, redisDb)
 
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		for _, routes := range app.Stack() {
 			for _, r := range routes {
 				if r.Path == c.Path() && r.Method != c.Method() {
@@ -65,12 +65,12 @@ func main() {
 		return c.Next()
 	})
 
-	app.Use(func(c *fiber.Ctx) error {
+	app.Use(func(c fiber.Ctx) error {
 		return helper.SendResponse(c, fiber.StatusNotFound, "Endpoint not found", nil)
 	})
 
 	// Ambil port dari env
-	port := os.Getenv("APP_PORT")
+	port := strconv.Itoa(config.AppConfig.Port)
 	if port == "" {
 		port = "8080"
 	}

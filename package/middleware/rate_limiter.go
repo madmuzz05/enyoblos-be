@@ -3,8 +3,8 @@ package middleware
 import (
 	"time"
 
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/limiter"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/madmuzz05/be-enyoblos/config"
 	"github.com/madmuzz05/be-enyoblos/package/helper"
 )
@@ -16,7 +16,7 @@ func NewRateLimiter() fiber.Handler {
 	return limiter.New(limiter.Config{
 		Max:        max,
 		Expiration: expiration,
-		LimitReached: func(c *fiber.Ctx) error {
+		LimitReached: func(c fiber.Ctx) error {
 			return helper.SendResponse(c, fiber.StatusTooManyRequests, "Rate limit exceeded", nil)
 		},
 	})

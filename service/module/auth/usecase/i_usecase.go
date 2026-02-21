@@ -1,7 +1,7 @@
 package usecase
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	syserror "github.com/madmuzz05/be-enyoblos/package/error"
 	"github.com/madmuzz05/be-enyoblos/package/middleware"
 	"github.com/madmuzz05/be-enyoblos/package/redisdb"
@@ -22,8 +22,8 @@ func InitAuthUsecase(redisDb *redisdb.RedisClient, userUsecase usecase.IUserUsec
 }
 
 type IAuthUsecase interface {
-	Login(ctx *fiber.Ctx, req dto.LoginRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError)
-	Register(ctx *fiber.Ctx, req dto.RegisterRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError)
+	Login(ctx fiber.Ctx, req dto.LoginRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError)
+	Register(ctx fiber.Ctx, req dto.RegisterRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError)
 	Logout(tokenStr string) (sysError syserror.SysError)
 	RefreshToken(tokenStr string, oldAccessToken string) (res middleware.GenerateTokenRes, sysError syserror.SysError)
 	RevokeAllTokens(userID int) (sysError syserror.SysError)

@@ -2,11 +2,11 @@
 package entity
 
 type User struct {
-	ID             int    `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name           string `gorm:"type:varchar(255);not null" json:"name" binding:"required"`
-	ShortName      string `gorm:"type:varchar(100);not null" json:"short_name" binding:"required"`
-	Email          string `gorm:"type:varchar(255);unique;not null" json:"email" binding:"required,email"`
-	Age            int    `gorm:"not null" json:"age" binding:"required,min=0"`
-	Password       string `gorm:"type:text;not null" json:"password" binding:"required,min=8"`
-	OrganizationID int    `gorm:"unique;not null" json:"organization_id" binding:"required"`
+	ID             int    `db:"id" json:"id"`
+	Name           string `db:"name" json:"name" binding:"required"`
+	ShortName      string `db:"short_name" json:"short_name" binding:"required"`
+	Email          string `db:"email" json:"email" binding:"required,email"`
+	Age            int    `db:"age" json:"age" binding:"required,min=0"`
+	Password       string `db:"password" json:"password" binding:"required,min=8"`
+	OrganizationID int    `db:"organization_id" json:"organization_id" binding:"required"`
 }

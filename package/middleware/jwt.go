@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/madmuzz05/be-enyoblos/config"
 	"github.com/madmuzz05/be-enyoblos/package/helper"
@@ -20,7 +20,7 @@ type GenerateTokenRes struct {
 
 // GenerateDeviceID - Generate unique device ID dari user agent + IP address
 // Untuk identify device tertentu dan handle per-device logout
-func GenerateDeviceID(c *fiber.Ctx) string {
+func GenerateDeviceID(c fiber.Ctx) string {
 	userAgent := c.Get("User-Agent")
 	ipAddress := c.IP()
 
@@ -43,7 +43,7 @@ func GenerateDeviceID(c *fiber.Ctx) string {
 // role = user role untuk authorization
 // deviceID = unique device identifier (dari user agent + IP)
 func GenerateTokenHS256(userID int, role string, deviceID string) (GenerateTokenRes, error) {
-	ttl := time.Duration(config.AppConfig.JwtExpiresIn) * time.Hour
+	ttl := time.Duration(config.AppConfig.JwtExpiresIn) * time.Second
 	secret := config.AppConfig.JwtSecret
 	key := config.AppConfig.JwtKey
 	claims := jwt.MapClaims{
@@ -73,7 +73,7 @@ func GenerateTokenHS256(userID int, role string, deviceID string) (GenerateToken
 // Menerima RedisClient untuk check token blacklist
 func JWTHS256Middleware(redisClient *redisdb.RedisClient, handler fiber.Handler, roles ...string) fiber.Handler {
 	secret := config.AppConfig.JwtSecret
-	return func(c *fiber.Ctx) error {
+	return func(c fiber.Ctx) error {
 		auth := c.Get("Authorization")
 		if auth == "" {
 			return helper.SendResponse(c, fiber.StatusUnauthorized, "Authorization header required", nil)

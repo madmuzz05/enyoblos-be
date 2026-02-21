@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/madmuzz05/be-enyoblos/config"
 	syserror "github.com/madmuzz05/be-enyoblos/package/error"
@@ -48,7 +48,7 @@ func (u *AuthUsecase) Logout(tokenStr string) (sysError syserror.SysError) {
 }
 
 // Login - Authenticate user dengan email dan password
-func (u *AuthUsecase) Login(ctx *fiber.Ctx, req dto.LoginRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError) {
+func (u *AuthUsecase) Login(ctx fiber.Ctx, req dto.LoginRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError) {
 	// Get user by email
 	userRes, err := u.userUsecase.GetUserByEmail(ctx, req.Email)
 	if err != nil {
@@ -101,7 +101,7 @@ func (u *AuthUsecase) Login(ctx *fiber.Ctx, req dto.LoginRequest, deviceID strin
 }
 
 // Register - Create new user account
-func (u *AuthUsecase) Register(ctx *fiber.Ctx, req dto.RegisterRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError) {
+func (u *AuthUsecase) Register(ctx fiber.Ctx, req dto.RegisterRequest, deviceID string) (res dto.AuthResponse, sysError syserror.SysError) {
 	// Create user menggunakan UserUsecase
 	userReq := userDTO.CreateUserRequest{
 		Name:           req.Name,
