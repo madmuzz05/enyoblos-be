@@ -1,0 +1,43 @@
+name: CI/CD Golang + Sonar
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Test + Coverage
+        run: go test ./... -coverprofile=coverage.out
+
+      # 🔍 SONAR
+      - name: Sonar Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # 🐳 DOCKER
+      - name: Login Docker
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/enyoblos-be:latest .
+
+      - name: Push Image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/enyoblos-be:latest
+
+      # 🚀 DEPLOY
+      - name: Deploy Render
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
