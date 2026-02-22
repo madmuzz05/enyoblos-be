@@ -13,11 +13,8 @@ type RedisClient struct {
 }
 
 func InitRedis(addr, password string, db int) (*RedisClient, error) {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
-	})
+	opt, _ := redis.ParseURL(fmt.Sprintf("rediss://default_ro:%s@%s", password, addr))
+	rdb := redis.NewClient(opt)
 
 	ctx := context.Background()
 	if pong, err := rdb.Ping(ctx).Result(); err != nil {
