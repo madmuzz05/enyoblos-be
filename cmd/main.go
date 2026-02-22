@@ -37,7 +37,7 @@ func main() {
 	}
 	log.Info().Msg("Connected to database successfully")
 
-	database.RunMigrationsPostgres(db.DB)
+	// database.RunMigrationsPostgres(db.DB)
 
 	redistStringConn := fmt.Sprintf("%s:%s", config.AppConfig.RedisHost, config.AppConfig.RedisPort)
 	redisDb, errRedis := redisdb.InitRedis(redistStringConn, config.AppConfig.RedisPassword, 0)
