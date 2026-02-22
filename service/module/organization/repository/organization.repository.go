@@ -20,11 +20,11 @@ func (r *OrganizationRepository) GetOrganizations(ctx fiber.Ctx) (res []entity.O
 	offset := helper.GetOffset(pagination.Page, pagination.PageSize)
 
 	// Get total records
-	countQuery := `SELECT COUNT(*) FROM organizations`
+	countQuery := `SELECT COUNT(*) FROM public.organizations`
 	db.Get(&totalRecords, countQuery)
 
 	// Get paginated data
-	query := `SELECT * FROM organizations ORDER BY id ` + pagination.Sort + ` LIMIT $1 OFFSET $2`
+	query := `SELECT * FROM public.organizations ORDER BY id ` + pagination.Sort + ` LIMIT $1 OFFSET $2`
 	err := db.Select(&res, query, pagination.PageSize, offset)
 
 	if err != nil {
@@ -41,7 +41,7 @@ func (r *OrganizationRepository) GetOrganizationByID(ctx fiber.Ctx, Id int) (res
 		DB:  r.mainDB.DB,
 		Ctx: ctx.Context(),
 	}
-	query := `SELECT * FROM organizations WHERE id = $1`
+	query := `SELECT * FROM public.organizations WHERE id = $1`
 
 	model := db.Get(&res, query, Id)
 	if model != nil {
@@ -66,7 +66,7 @@ func (r *OrganizationRepository) CreateOrganization(ctx fiber.Ctx, req dto.Creat
 		Address:   req.Address,
 	}
 
-	query := `INSERT INTO organizations (name, short_name, address) VALUES ($1, $2, $3) RETURNING *`
+	query := `INSERT INTO public.organizations (name, short_name, address) VALUES ($1, $2, $3) RETURNING *`
 	model := db.Get(&res, query, res.Name, res.ShortName, res.Address)
 
 	if model != nil {
@@ -98,7 +98,7 @@ func (r *OrganizationRepository) UpdateOrganization(ctx fiber.Ctx, id int, req d
 		res.Address = req.Address
 	}
 
-	query := `UPDATE organizations SET name = $1, short_name = $2, address = $3 WHERE id = $4 RETURNING *`
+	query := `UPDATE public.organizations SET name = $1, short_name = $2, address = $3 WHERE id = $4 RETURNING *`
 	model := db.Get(&res, query, res.Name, res.ShortName, res.Address, id)
 
 	if model != nil {
@@ -119,7 +119,7 @@ func (r *OrganizationRepository) DeleteOrganization(ctx fiber.Ctx, id int) (sysE
 		Ctx: ctx.Context(),
 	}
 
-	query := `DELETE FROM organizations WHERE id = $1`
+	query := `DELETE FROM public.organizations WHERE id = $1`
 
 	result, err := db.Exec(query, id)
 	if err != nil {
