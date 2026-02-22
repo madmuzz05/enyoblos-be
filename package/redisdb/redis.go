@@ -17,11 +17,11 @@ func InitRedis(addr, password string, db int) (*RedisClient, error) {
 	rdb := redis.NewClient(opt)
 
 	ctx := context.Background()
-	if pong, err := rdb.Ping(ctx).Result(); err != nil {
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
 		return nil, fmt.Errorf("gagal konek ke Redis: %w", err)
-	} else {
-		fmt.Println("Redis connected:", pong)
 	}
+	fmt.Println("Redis connected:", pong)
 
 	return &RedisClient{
 		Client: rdb,
