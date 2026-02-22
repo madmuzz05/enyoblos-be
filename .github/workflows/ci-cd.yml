@@ -1,43 +1,61 @@
-name: CI/CD Golang + Sonar
+name: CI-CD Pipeline
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build:
+  build-test-sonar:
+    name: Build, Test & Sonar Scan
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout (WAJIB fetch-depth 0 untuk sonar)
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
+      # 2. Setup Go
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      - name: Test + Coverage
-        run: go test ./... -coverprofile=coverage.out
+      # 3. Cache Go modules
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      # 🔍 SONAR
-      - name: Sonar Scan
-        uses: SonarSource/sonarcloud-github-action@v2
+      # 4. Install dependencies
+      - name: Install dependencies
+        run: go mod tidy
+
+      # 5. Run tests + coverage
+      - name: Run tests
+        run: |
+          go test ./... -coverprofile=coverage.out
+
+      # 6. SonarCloud Scan (pakai commit SHA, bukan @v2)
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@3e9c5b4c6b4d8b6f0e3b8a2c2c4c1f0f8d2f7abc
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      # 🐳 DOCKER
-      - name: Login Docker
-        uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          args: >
+            -Dsonar.projectKey=madmuzz05_enyoblos-be
+            -Dsonar.organization=madmuzz05
+            -Dsonar.sources=.
+            -Dsonar.go.coverage.reportPaths=coverage.out
 
-      - name: Build Image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/enyoblos-be:latest .
-
-      - name: Push Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/enyoblos-be:latest
-
-      # 🚀 DEPLOY
-      - name: Deploy Render
-        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+      # 7. (Optional) Build Docker Image
+      - name: Build Docker image
+        run: docker build -t enyoblos-be-app .
