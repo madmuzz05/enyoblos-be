@@ -17,12 +17,22 @@ FROM alpine:latest
 
 WORKDIR /app
 
+# install cert
 RUN apk add --no-cache ca-certificates
 
-# copy binary saja
+# 🔐 buat user non-root
+RUN adduser -D appuser
+
+# copy binary
 COPY --from=builder /app/app .
 
-# copy migrations (INI YANG KAMU BUTUH)
+# copy migrations
 COPY --from=builder /app/package/database/postgres/migrations ./package/database/postgres/migrations
+
+# kasih permission ke user baru
+RUN chown -R appuser:appuser /app
+
+# 🔐 pakai user non-root
+USER appuser
 
 CMD ["./app"]
