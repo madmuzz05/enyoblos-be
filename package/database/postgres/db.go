@@ -28,7 +28,7 @@ type DBWithCtx struct {
 
 func Connect(host, user, password, dbname, port, sslmode string) (*MainDB, error) {
 	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s",
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s channel_binding=require",
 		host, user, password, dbname, port, sslmode,
 	)
 
